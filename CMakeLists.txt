@@ -7,3 +7,5 @@ set(CMAKE_CXX_FLAGS "-fno-elide-constructors")
 include_directories(include ${catkin_INCLUDE_DIRS} headers/)
 
 add_executable(symbolicc++ symbolicc++.cc)
+
+add_executable(types types.cc)
