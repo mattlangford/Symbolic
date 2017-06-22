@@ -1,4 +1,6 @@
 #include <iostream>
+#include <math.h>
+
 
 //
 // ### Rational Math ###########################################################
@@ -24,15 +26,15 @@ public:
 //
 // *I THINK* these will be preferred over the normie math below when using Rational types
 //
-template<int num1, int num2, int denom1, int denom2>
-constexpr Rational<num1 * denom2 + num2 * denom1, denom1 * denom2> operator+(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
-template<int num1, int num2, int denom1, int denom2>
-constexpr Rational<num1 * denom2 - num2 * denom1, denom1 * denom2> operator-(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
-template<int num1, int num2, int denom1, int denom2>
-constexpr Rational<num1 * num2, denom1 * denom2> operator*(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
-template<int num1, int num2, int denom1, int denom2>
-constexpr Rational<num1 * denom2, num2 * denom1> operator/(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
-
+// template<int num1, int num2, int denom1, int denom2>
+// constexpr Rational<num1 * denom2 + num2 * denom1, denom1 * denom2> operator+(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
+// template<int num1, int num2, int denom1, int denom2>
+// constexpr Rational<num1 * denom2 - num2 * denom1, denom1 * denom2> operator-(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
+// template<int num1, int num2, int denom1, int denom2>
+// constexpr Rational<num1 * num2, denom1 * denom2> operator*(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
+// template<int num1, int num2, int denom1, int denom2>
+// constexpr Rational<num1 * denom2, num2 * denom1> operator/(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
+// 
 //
 // ### Symbolic Variable Math ##################################################
 // Based on: https://arxiv.org/pdf/1705.01729.pdf
@@ -50,6 +52,23 @@ public:
         return x[index];
     }
 };
+
+////////////////////////////////////////////////////////////////////////////////
+
+// template <typename T>
+// class Constant
+// {
+// public:
+//     Constant() : expression(T()), value(expression(0)) { }
+// 
+//     inline constexpr double operator()(const double* x) { return value; }
+// 
+// private:
+//     T expression;
+//     double value;
+// };
+
+////////////////////////////////////////////////////////////////////////////////
 
 template <typename lhs, typename rhs, typename op>
 class BinaryOp
@@ -71,96 +90,61 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class Add
-{
-//
-// Addition between two doubles
-//
-public:
-    static constexpr double apply(double a, double b)
-    {
-        return a + b;
-    }
-};
-
-template<typename lhs, typename rhs>
-constexpr BinaryOp<lhs, rhs, Add> operator+(const lhs &l, const rhs &r)
-{
-    return {l, r};
-}
+#define DEFINE_BINARY_OP(NAME, OPERATOR)                                         \
+class NAME                                                                       \
+{                                                                                \
+public:                                                                          \
+    static constexpr double apply(double a, double b)                            \
+    {                                                                            \
+        return a OPERATOR b;                                                     \
+    }                                                                            \
+};                                                                               \
+                                                                                 \
+template<typename lhs, typename rhs>                                             \
+constexpr BinaryOp<lhs, rhs, NAME> operator OPERATOR(const lhs &l, const rhs &r) \
+{                                                                                \
+    return {l, r};                                                               \
+}                                                                                \
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class Subtract
-{
-//
-// Subtraction between two doubles
-//
-public:
-    static constexpr double apply(double a, double b)
-    {
-        return a - b;
-    }
-};
+#define DEFINE_FUNCTION_OP(MATH_FUNCTION)                                          \
+template <typename T>                                                              \
+class _Symbolic_##MATH_FUNCTION                                                    \
+{                                                                                  \
+public:                                                                            \
+    _Symbolic_##MATH_FUNCTION(const T& expression_) : expression(expression_) { }; \
+                                                                                   \
+    inline constexpr double operator()(const double* x) const                      \
+    {                                                                              \
+        return MATH_FUNCTION(expression(x));                                       \
+    }                                                                              \
+                                                                                   \
+private:                                                                           \
+    T expression;                                                                  \
+};                                                                                 \
+                                                                                   \
+template <typename T>                                                              \
+inline _Symbolic_##MATH_FUNCTION<T> MATH_FUNCTION(const T& expression)             \
+{                                                                                  \
+    return {expression};                                                           \
+}                                                                                  \
 
-template<typename lhs, typename rhs>
-constexpr BinaryOp<lhs, rhs, Subtract> operator-(const lhs &l, const rhs &r)
-{
-    return {l, r};
-}
+DEFINE_BINARY_OP(Add, +)
+DEFINE_BINARY_OP(Sub, -)
+DEFINE_BINARY_OP(Div, /)
+DEFINE_BINARY_OP(Mult, *)
 
-////////////////////////////////////////////////////////////////////////////////
-
-class Multiply
-{
-//
-// Multiplication between two doubles
-//
-public:
-    static constexpr double apply(double a, double b)
-    {
-        return a * b;
-    }
-};
-
-template<typename lhs, typename rhs>
-constexpr BinaryOp<lhs, rhs, Multiply> operator*(const lhs &l, const rhs &r)
-{
-    return {l, r};
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-class Divide
-{
-//
-// Division between two doubles
-// TODO: This could return a Rational type
-//
-public:
-    static constexpr double apply(double a, double b)
-    {
-        return a / b;
-    }
-};
-
-template<typename lhs, typename rhs>
-constexpr BinaryOp<lhs, rhs, Divide> operator/(const lhs &l, const rhs &r)
-{
-    return {l, r};
-}
-
-////////////////////////////////////////////////////////////////////////////////
+DEFINE_FUNCTION_OP(sin)
+DEFINE_FUNCTION_OP(cos)
+DEFINE_FUNCTION_OP(exp)
 
 int main()
 {
-    Rational<1, 2> half;
-    Rational<1, 3> third;
-
     Variable<0> x;
     Variable<1> y;
 
     double vars[] = {1, 2};
-    auto z = x + (y / x) + x * x * x + (half + third);
+    auto z = sin(x + (y / x) + x * x * x);
     std::cout << z(vars) << std::endl;
 }
