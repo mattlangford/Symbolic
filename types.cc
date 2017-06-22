@@ -114,7 +114,7 @@ template<typename lhs, typename rhs>                                            
 constexpr BinaryOp<lhs, rhs, NAME> operator OPERATOR(const lhs &l, const rhs &r) \
 {                                                                                \
     return {l, r};                                                               \
-}                                                                                \
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -136,7 +136,7 @@ template <typename T>                                                           
 inline Symbolic_##MATH_FUNCTION<T> MATH_FUNCTION(const T& expression)              \
 {                                                                                  \
     return {expression};                                                           \
-}                                                                                  \
+}
 
 DEFINE_BINARY_OP(Add, +)
 DEFINE_BINARY_OP(Sub, -)
@@ -159,8 +159,8 @@ class Der
 {
 };
 
-template <int value>
-class Der<Integer<value>, Integer<value> >
+template <size_t index, int value>
+class Der<Variable<index>, Integer<value> >
 {
 //
 // Partial derivatives of any integer is 0
@@ -229,10 +229,8 @@ int main()
 
     double vars[] = {4, 2};
 
-    typedef decltype(exp(x * x)) Z;
-    typedef typename Der<Variable<0>, Z>::DerType v0_dZ;
+    using Z = decltype(exp(x * x));
+    using d0_dZ = Der<Variable<0>, Z>::DerType;
 
-    v0_dZ partial;
-
-    std::cout << partial(vars) << std::endl;
+    std::cout << d0_dZ()(vars) << std::endl;
 }
