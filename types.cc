@@ -23,18 +23,15 @@ public:
 
 };
 
-//
-// *I THINK* these will be preferred over the normie math below when using Rational types
-//
-// template<int num1, int num2, int denom1, int denom2>
-// constexpr Rational<num1 * denom2 + num2 * denom1, denom1 * denom2> operator+(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
-// template<int num1, int num2, int denom1, int denom2>
-// constexpr Rational<num1 * denom2 - num2 * denom1, denom1 * denom2> operator-(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
-// template<int num1, int num2, int denom1, int denom2>
-// constexpr Rational<num1 * num2, denom1 * denom2> operator*(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
-// template<int num1, int num2, int denom1, int denom2>
-// constexpr Rational<num1 * denom2, num2 * denom1> operator/(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
-// 
+template<int num1, int num2, int denom1, int denom2>
+constexpr Rational<num1 * denom2 + num2 * denom1, denom1 * denom2> operator+(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
+template<int num1, int num2, int denom1, int denom2>
+constexpr Rational<num1 * denom2 - num2 * denom1, denom1 * denom2> operator-(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
+template<int num1, int num2, int denom1, int denom2>
+constexpr Rational<num1 * num2, denom1 * denom2> operator*(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
+template<int num1, int num2, int denom1, int denom2>
+constexpr Rational<num1 * denom2, num2 * denom1> operator/(const Rational<num1, denom1> &r1, const Rational<num2, denom2> &r2) { return {}; }
+
 //
 // ### Symbolic Variable Math ##################################################
 // Based on: https://arxiv.org/pdf/1705.01729.pdf
@@ -50,6 +47,21 @@ public:
     constexpr double operator()(const double *x) const
     {
         return x[index];
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <int value>
+class Integer
+{
+//
+// Integer type
+//
+public:
+    constexpr double operator()(const double *x) const
+    {
+        return value;
     }
 };
 
@@ -77,8 +89,6 @@ class BinaryOp
 // General binary operator between two general types
 //
 public:
-    BinaryOp(const lhs &l_, const rhs &r_) : l(l_), r(r_) {};
-
     constexpr double operator()(const double *x) const
     {
         return op::apply(l(x), r(x));
@@ -110,11 +120,9 @@ constexpr BinaryOp<lhs, rhs, NAME> operator OPERATOR(const lhs &l, const rhs &r)
 
 #define DEFINE_FUNCTION_OP(MATH_FUNCTION)                                          \
 template <typename T>                                                              \
-class _Symbolic_##MATH_FUNCTION                                                    \
+class Symbolic_##MATH_FUNCTION                                                     \
 {                                                                                  \
 public:                                                                            \
-    _Symbolic_##MATH_FUNCTION(const T& expression_) : expression(expression_) { }; \
-                                                                                   \
     inline constexpr double operator()(const double* x) const                      \
     {                                                                              \
         return MATH_FUNCTION(expression(x));                                       \
@@ -125,7 +133,7 @@ private:                                                                        
 };                                                                                 \
                                                                                    \
 template <typename T>                                                              \
-inline _Symbolic_##MATH_FUNCTION<T> MATH_FUNCTION(const T& expression)             \
+inline Symbolic_##MATH_FUNCTION<T> MATH_FUNCTION(const T& expression)              \
 {                                                                                  \
     return {expression};                                                           \
 }                                                                                  \
@@ -139,12 +147,92 @@ DEFINE_FUNCTION_OP(sin)
 DEFINE_FUNCTION_OP(cos)
 DEFINE_FUNCTION_OP(exp)
 
+//
+// ### Derivative Types ########################################################
+//
+
+template <class n, class m>
+class Der
+//
+// "Base" template type, everything else is specialised from here
+//
+{
+};
+
+template <int value>
+class Der<Integer<value>, Integer<value> >
+{
+//
+// Partial derivatives of any integer is 0
+//
+public:
+    typedef Integer<0> DerType;
+};
+
+template <size_t index>
+class Der<Variable<index>, Variable<index> >
+//
+// Partial derivatives of any variable and itself is 1
+//
+{
+public:
+    typedef Integer<1> DerType;
+};
+
+template <size_t index, size_t index_1>
+class Der<Variable<index>, Variable<index_1> >
+{
+//
+// Partial derivatives of any variable with any other variable is 0
+//
+public:
+    typedef Integer<0> DerType;
+};
+
+template <size_t index, typename lhs, typename rhs>
+class Der<Variable<index>, BinaryOp<lhs, rhs, Mult> >
+{
+//
+// Chain rule: d(L * R) = (dL * R) + (L * dR)
+//
+private:
+    typedef typename Der<Variable<index>, lhs>::DerType d_l;
+    typedef typename Der<Variable<index>, rhs>::DerType d_r;
+
+public:
+    typedef BinaryOp<BinaryOp<d_l, rhs, Mult>,
+                     BinaryOp<lhs, d_r, Mult>,
+                     Add> DerType;
+};
+
+template <size_t index, typename F>
+class Der<Variable<index>, Symbolic_exp<F> >
+{
+//
+// Exp derivative: d(e ^ f) = df * e ^ f
+//
+private:
+    typedef typename Der<Variable<index>, F>::DerType d_f;
+
+public:
+    typedef BinaryOp<d_f, Symbolic_exp<F>, Mult> DerType;
+};
+
+//
+// #############################################################################
+//
+
 int main()
 {
     Variable<0> x;
     Variable<1> y;
 
-    double vars[] = {1, 2};
-    auto z = sin(x + (y / x) + x * x * x);
-    std::cout << z(vars) << std::endl;
+    double vars[] = {4, 2};
+
+    typedef decltype(exp(x * x)) Z;
+    typedef typename Der<Variable<0>, Z>::DerType v0_dZ;
+
+    v0_dZ partial;
+
+    std::cout << partial(vars) << std::endl;
 }
