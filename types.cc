@@ -72,9 +72,9 @@ public:
 // {
 // public:
 //     Constant() : expression(T()), value(expression(0)) { }
-// 
+//
 //     inline constexpr double operator()(const double* x) { return value; }
-// 
+//
 // private:
 //     T expression;
 //     double value;
@@ -148,7 +148,28 @@ DEFINE_FUNCTION_OP(cos)
 DEFINE_FUNCTION_OP(exp)
 
 //
-// ### Derivative Types ########################################################
+// Power is *almost* a FUNCTION_OP but not quite
+//
+template <typename T, int power>
+class Symbolic_pow
+{
+public:
+    inline constexpr double operator()(const double* x) const
+    {
+        return pow(expression(x), power);
+    }
+
+private:
+    T expression;
+};
+
+template <typename T, int power>
+inline Symbolic_pow<T, power> pow(const T& expression, const Integer<power> power_)
+{
+    return {expression};
+}
+//
+// ############################################################################
 //
 
 template <class n, class m>
@@ -158,6 +179,8 @@ class Der
 //
 {
 };
+
+///////////////////////////////////////////////////////////////////////////////
 
 template <size_t index, int value>
 class Der<Variable<index>, Integer<value> >
@@ -169,6 +192,8 @@ public:
     typedef Integer<0> DerType;
 };
 
+///////////////////////////////////////////////////////////////////////////////
+
 template <size_t index>
 class Der<Variable<index>, Variable<index> >
 //
@@ -179,6 +204,8 @@ public:
     typedef Integer<1> DerType;
 };
 
+///////////////////////////////////////////////////////////////////////////////
+
 template <size_t index, size_t index_1>
 class Der<Variable<index>, Variable<index_1> >
 {
@@ -188,6 +215,40 @@ class Der<Variable<index>, Variable<index_1> >
 public:
     typedef Integer<0> DerType;
 };
+
+///////////////////////////////////////////////////////////////////////////////
+
+template <size_t index, typename lhs, typename rhs>
+class Der<Variable<index>, BinaryOp<lhs, rhs, Add> >
+{
+//
+// Sum rule: d(F + G) = dF + dG
+//
+private:
+    typedef typename Der<Variable<index>, lhs>::DerType d_l;
+    typedef typename Der<Variable<index>, rhs>::DerType d_r;
+
+public:
+    typedef BinaryOp<d_l, d_r, Add> DerType;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+template <size_t index, typename lhs, typename rhs>
+class Der<Variable<index>, BinaryOp<lhs, rhs, Sub> >
+{
+//
+// Subtraction rule: d(F - G) = dF - dG
+//
+private:
+    typedef typename Der<Variable<index>, lhs>::DerType d_l;
+    typedef typename Der<Variable<index>, rhs>::DerType d_r;
+
+public:
+    typedef BinaryOp<d_l, d_r, Sub> DerType;
+};
+
+///////////////////////////////////////////////////////////////////////////////
 
 template <size_t index, typename lhs, typename rhs>
 class Der<Variable<index>, BinaryOp<lhs, rhs, Mult> >
@@ -205,6 +266,8 @@ public:
                      Add> DerType;
 };
 
+///////////////////////////////////////////////////////////////////////////////
+
 template <size_t index, typename F>
 class Der<Variable<index>, Symbolic_exp<F> >
 {
@@ -218,6 +281,69 @@ public:
     typedef BinaryOp<d_f, Symbolic_exp<F>, Mult> DerType;
 };
 
+///////////////////////////////////////////////////////////////////////////////
+
+template <size_t index, typename u, typename v>
+class Der<Variable<index>, BinaryOp<u, v, Div> >
+{
+//
+// Quotient rule: d(u / v) = (du * v - u * dv) / (v * v)
+//
+private:
+    typedef typename Der<Variable<index>, u>::DerType d_u;
+    typedef typename Der<Variable<index>, v>::DerType d_v;
+
+    typedef BinaryOp<BinaryOp<d_u, v, Mult>,
+                     BinaryOp<u, d_v, Mult>,
+                     Sub> Numerator;
+    typedef BinaryOp<v, v, Mult> Denominator;
+
+public:
+    typedef BinaryOp<Numerator, Denominator, Div> DerType;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+template <size_t index, typename F>
+class Der<Variable<index>, Symbolic_sin<F> >
+{
+//
+// d(sin(F)) = dF * cos(F)
+//
+private:
+    typedef typename Der<Variable<index>, F>::DerType d_F;
+
+public:
+    typedef BinaryOp<Symbolic_cos<F>, d_F, Mult> DerType;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+template <size_t index, typename F>
+class Der<Variable<index>, Symbolic_cos<F> >
+{
+//
+// d(cos(F)) = -dF * sin(F)
+//
+private:
+    typedef typename Der<Variable<index>, F>::DerType d_F;
+
+public:
+    typedef BinaryOp<Integer<-1>, BinaryOp<Symbolic_cos<F>, d_F, Mult>, Mult> DerType;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+template <size_t index, typename F, int power>
+class Der<Variable<index>, Symbolic_pow<F, power> >
+{
+//
+// Power Rule: d(F ^ n) = n * F ^ (n - 1)
+//
+public:
+    typedef BinaryOp<Integer<power>, Symbolic_pow<F, power - 1>, Mult> DerType;
+};
+
 //
 // #############################################################################
 //
@@ -227,9 +353,9 @@ int main()
     Variable<0> x;
     Variable<1> y;
 
-    double vars[] = {4, 2};
+    double vars[] = {0.5, 2};
 
-    using Z = decltype(exp(x * x));
+    using Z = decltype(x * exp(Integer<2>() * x));
     using d0_dZ = Der<Variable<0>, Z>::DerType;
 
     std::cout << d0_dZ()(vars) << std::endl;
