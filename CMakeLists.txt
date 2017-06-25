@@ -4,8 +4,7 @@ project(Symbolic)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "-fno-elide-constructors")
 
-include_directories(include ${catkin_INCLUDE_DIRS} headers/)
+# include_directories(include ${catkin_INCLUDE_DIRS} headers/)
+# add_executable(symbolicc++ symbolicc++.cc)
 
-add_executable(symbolicc++ symbolicc++.cc)
-
-add_executable(types types.cc)
+add_executable(nn nn.cc)

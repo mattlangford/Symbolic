@@ -1,6 +1,6 @@
+#pragma once
 #include <iostream>
 #include <math.h>
-
 
 //
 // ### Rational Math ###########################################################
@@ -343,20 +343,3 @@ class Der<Variable<index>, Symbolic_pow<F, power> >
 public:
     typedef BinaryOp<Integer<power>, Symbolic_pow<F, power - 1>, Mult> DerType;
 };
-
-//
-// #############################################################################
-//
-
-int main()
-{
-    Variable<0> x;
-    Variable<1> y;
-
-    double vars[] = {0.5, 2};
-
-    using Z = decltype(x * exp(Integer<2>() * x));
-    using d0_dZ = Der<Variable<0>, Z>::DerType;
-
-    std::cout << d0_dZ()(vars) << std::endl;
-}
