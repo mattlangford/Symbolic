@@ -44,6 +44,7 @@ class Variable
 // General variable type, used to build up expressions
 //
 public:
+    const static size_t id = index;
     constexpr double operator()(const double *x) const
     {
         return x[index];
@@ -113,7 +114,6 @@ public:                                                                         
 template<typename lhs, typename rhs>                                             \
 constexpr BinaryOp<lhs, rhs, NAME> operator OPERATOR(const lhs &l, const rhs &r) \
 {                                                                                \
-    return {l, r};                                                               \
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,7 +135,6 @@ private:                                                                        
 template <typename T>                                                              \
 inline Symbolic_##MATH_FUNCTION<T> MATH_FUNCTION(const T& expression)              \
 {                                                                                  \
-    return {expression};                                                           \
 }
 
 DEFINE_BINARY_OP(Add, +)
@@ -343,3 +342,7 @@ class Der<Variable<index>, Symbolic_pow<F, power> >
 public:
     typedef BinaryOp<Integer<power>, Symbolic_pow<F, power - 1>, Mult> DerType;
 };
+
+//
+// ############################################################################
+//
